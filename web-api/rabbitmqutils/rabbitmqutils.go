@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/EduardOprea/ai4fashion/web-api/models"
-
 	"github.com/streadway/amqp"
 )
 

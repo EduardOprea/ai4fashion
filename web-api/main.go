@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"models"
 	"net/http"
-	"rabbitmqutils"
 	"strconv"
+
+	"github.com/EduardOprea/ai4fashion/web-api/models"
+	"github.com/EduardOprea/ai4fashion/web-api/rabbitmqutils"
 
 	"github.com/gorilla/mux"
 )
