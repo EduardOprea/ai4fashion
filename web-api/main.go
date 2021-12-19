@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/EduardOprea/ai4fashion/web-api/models"
@@ -48,7 +49,7 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 	// write this byte array to our temporary file
 	tempFile.Write(fileBytes)
 
-	processImageTran := models.ProcessImageTran{DesiredAttributes: desiredAttributes, ImageName: tempFile.Name()}
+	processImageTran := models.ProcessImageTran{DesiredAttributes: desiredAttributes, ImageName: filepath.Base(tempFile.Name())}
 	if err := rabbitmqutils.PublishImageToProcessTransaction(processImageTran); err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
