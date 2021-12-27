@@ -8,16 +8,13 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
+	"github.com/EduardOprea/ai4fashion/processer/dbutils"
 	"github.com/EduardOprea/ai4fashion/processer/models"
-
 	"github.com/streadway/amqp"
 )
-
-const connString = "mlongodb://localhost:27017"
 
 func processImageTransactionReceived(received []byte) {
 	var tran models.ProcessImageTran
@@ -28,15 +25,25 @@ func processImageTransactionReceived(received []byte) {
 
 	fmt.Println("Deserialised bytes received succesfully")
 	fmt.Printf("Result => %v", tran)
-	downloadImage(tran.ImageName)
-
+	// TODO => do not save the image to filesystem, instead I need to process it and
+	// and then store it to the db
+	// after storing it to the db, we need to notify the web api that is ready in order to further notify
+	// the client, or the client will make continuous polling based on a transaction id that was provided to him
+	// and the name under which the image is saved in the db should be correlated with the transaction id
+	data, err := getImageToProcess(tran.ImageName)
+	if err != nil {
+		fmt.Printf("Downloading image to process from web api failed => %v", err)
+		return
+	}
+	fmt.Println("Downloaded the image succesfully, uploading to DB")
+	dbutils.UploadFile(data, tran.ImageName)
 }
 
-func downloadImage(fileName string) ([]byte, error) {
+func getImageToProcess(fileName string) ([]byte, error) {
 	c := http.Client{Timeout: time.Duration(60) * time.Second}
 	resp, err := c.Get(fmt.Sprintf("http://localhost:8081/download/%s", fileName))
 	if err != nil {
-		fmt.Printf("Error %s", err)
+		// fmt.Printf("Error %s", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -45,34 +52,35 @@ func downloadImage(fileName string) ([]byte, error) {
 		log.Println("[*] Destination server does not support breakpoint download.")
 	}
 	raw := resp.Body
-	defer raw.Close()
 	reader := bufio.NewReaderSize(raw, 1024*32)
 
-	file, err := os.Create("to-process/" + fileName)
-	defer file.Close()
-	if err != nil {
-		panic(err)
-	}
-	writer := bufio.NewWriter(file)
-
-	buff := make([]byte, 32*1024)
+	// file, err := os.Create("to-process/" + fileName)
+	// defer file.Close()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// writer := bufio.NewWriter(file)
+	buff := make([]byte, 0)
+	buffTemp := make([]byte, 32*1024)
 	written := 0
 	go func() {
 		for {
-			nr, er := reader.Read(buff)
+			nr, er := reader.Read(buffTemp)
 			if nr > 0 {
-				nw, ew := writer.Write(buff[0:nr])
-				if nw > 0 {
-					written += nw
-				}
-				if ew != nil {
-					err = ew
-					break
-				}
-				if nr != nw {
-					err = io.ErrShortWrite
-					break
-				}
+				buff = append(buff, buffTemp...)
+				written += nr
+				// nw, ew := writer.Write(buffTemp[0:nr])
+				// if nw > 0 {
+				// 	written += nw
+				// }
+				// if ew != nil {
+				// 	err = ew
+				// 	break
+				// }
+				// if nr != nw {
+				// 	err = io.ErrShortWrite
+				// 	break
+				// }
 			}
 			if er != nil {
 				if er != io.EOF {
@@ -108,7 +116,7 @@ func downloadImage(fileName string) ([]byte, error) {
 		}
 	}
 
-	return nil, nil
+	return buff, nil
 }
 
 func bytesToSize(length int) string {

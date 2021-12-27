@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/EduardOprea/ai4fashion/web-api/models"
 	"github.com/EduardOprea/ai4fashion/web-api/rabbitmqutils"
@@ -33,8 +34,11 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
 	fmt.Printf("File Size: %+v\n", handler.Size)
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
+	imgExtension := strings.Split(handler.Filename, ".")[1]
+	fmt.Printf("File extension: %+v\n", imgExtension)
 
-	tempFile, err := ioutil.TempFile("imgs-process", "upload-*.png")
+	tempFile, err := ioutil.TempFile("imgs-process", fmt.Sprintf("upload-*.%s", imgExtension))
+	fmt.Printf("Saving uploaded file as %s \n", tempFile.Name())
 	if err != nil {
 		fmt.Println(err)
 	}
