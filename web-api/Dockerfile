@@ -1,4 +1,5 @@
 FROM golang:1.17.5-alpine
+ENV ENV_VAR_TEST="Valoare la misto"
 RUN mkdir /app
 ADD . /app
 WORKDIR /app

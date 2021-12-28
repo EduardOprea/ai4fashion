@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -84,6 +85,7 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":8081", myRouter))
 }
 func main() {
+	fmt.Printf("Variabile de environment asa la valoare %s \n", os.Getenv("ENV_VAR_TEST"))
 	fmt.Println("Server started")
 	handleRequests()
 }
