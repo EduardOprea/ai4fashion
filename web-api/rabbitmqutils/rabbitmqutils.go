@@ -47,7 +47,9 @@ func PublishImageToProcessTransaction(tran models.ProcessImageTran) error {
 }
 func GetAMQPChannel() (*amqp.Channel, error) {
 	fmt.Println("Rabbit MQ connect")
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	amqpConn := "amqp://guest:guest@localhost:5672/"
+	fmt.Printf("Connection string to rabbit mq -> %s \n", amqpConn)
+	conn, err := amqp.Dial(amqpConn)
 	if err != nil {
 		return nil, err
 	}

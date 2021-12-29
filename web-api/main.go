@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,7 +19,11 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Homepage Endpoint hit")
 }
 
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
 func uploadImage(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	fmt.Println("File Upload Endpoint Hit")
 	//r.ParseMultipartForm(10 << 20)
 	file, handler, err := r.FormFile("image")
@@ -32,6 +35,7 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+	fmt.Printf("Desired attirbutes: %s \n", desiredAttributes)
 	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
 	fmt.Printf("File Size: %+v\n", handler.Size)
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
@@ -85,7 +89,6 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":8081", myRouter))
 }
 func main() {
-	fmt.Printf("Variabile de environment asa la valoare %s \n", os.Getenv("ENV_VAR_TEST"))
 	fmt.Println("Server started")
 	handleRequests()
 }
