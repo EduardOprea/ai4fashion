@@ -3,6 +3,7 @@ package rabbitmqutils
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/EduardOprea/ai4fashion/web-api/models"
 	"github.com/streadway/amqp"
@@ -47,7 +48,8 @@ func PublishImageToProcessTransaction(tran models.ProcessImageTran) error {
 }
 func GetAMQPChannel() (*amqp.Channel, error) {
 	fmt.Println("Rabbit MQ connect")
-	amqpConn := "amqp://guest:guest@localhost:5672/"
+	// amqpConn := "amqp://guest:guest@localhost:5672/"
+	amqpConn := os.Getenv("AMQP_URL")
 	fmt.Printf("Connection string to rabbit mq -> %s \n", amqpConn)
 	conn, err := amqp.Dial(amqpConn)
 	if err != nil {

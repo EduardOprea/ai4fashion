@@ -77,3 +77,11 @@ baseline.json
 
 # Husky
 .husky/_
+
+
+# python 
+cyclegan_models/
+test_images/
+venv_cyclegan/
+.vscode/
+__pycache__/

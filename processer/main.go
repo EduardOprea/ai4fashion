@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -41,7 +42,8 @@ func processImageTransactionReceived(received []byte) {
 
 func getImageToProcess(fileName string) ([]byte, error) {
 	c := http.Client{Timeout: time.Duration(60) * time.Second}
-	resp, err := c.Get(fmt.Sprintf("http://localhost:8081/download/%s", fileName))
+	// resp, err := c.Get(fmt.Sprintf("http://localhost:8081/download/%s", fileName))
+	resp, err := c.Get(fmt.Sprintf("%s/download/%s", os.Getenv("API_URL"), fileName))
 	if err != nil {
 		// fmt.Printf("Error %s", err)
 		return nil, err
@@ -131,8 +133,11 @@ func bytesToSize(length int) string {
 }
 
 func main() {
+	amqpUrl := os.Getenv("AMQP_URL")
+	fmt.Printf("Test to see if environment variables are injected -> %s \n", amqpUrl)
+	// amqpName := "amqp://guest:guest@localhost:5672/"
 	fmt.Println("Rabbit MQ consumer start")
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial(amqpUrl)
 	if err != nil {
 		fmt.Println("Failed Initializing Broker Connection")
 		panic(err)

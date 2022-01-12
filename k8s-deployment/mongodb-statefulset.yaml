@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb-standalone
+spec:
+  serviceName: database
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database
+  template:
+    metadata:
+      labels:
+        app: database
+        selector: mongodb-standalone
+    spec:
+      containers:
+      - name: mongodb-standalone
+        image: mongo:4.0.8
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME_FILE
+            value: /etc/db-secret/admin/MONGO_ROOT_USERNAME
+          - name: MONGO_INITDB_ROOT_PASSWORD_FILE
+            value: /etc/db-secret/admin/MONGO_ROOT_PASSWORD
+        volumeMounts:
+        - name: db-secret
+          mountPath: /etc/db-secret
+          readOnly: true
+        - name: mongodb-conf
+          mountPath: /config
+          readOnly: true
+        - name: mongodb-data
+          mountPath: /data/db
+      volumes:
+      - name: db-secret
+        secret:
+          secretName: db-secret
+          items:
+          - key: MONGO_ROOT_USERNAME
+            path: admin/MONGO_ROOT_USERNAME
+            mode: 0444
+          - key: MONGO_ROOT_PASSWORD
+            path: admin/MONGO_ROOT_PASSWORD
+            mode: 0444
+      - name: mongodb-conf
+        configMap:
+          name: mongodb-standalone
+          items:
+          - key: mongo.conf
+            path: mongo.conf
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: mongodb-standalone

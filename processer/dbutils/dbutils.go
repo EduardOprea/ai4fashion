@@ -13,6 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+//const connString := os.Getenv("MONGODB_URL")
+
 const connString = "mongodb://localhost:27017"
 const dbName = "ai4fashionDB"
 
@@ -20,10 +22,20 @@ const dbName = "ai4fashionDB"
 func InitiateMongoClient() *mongo.Client {
 	var err error
 	var client *mongo.Client
+	fmt.Println("initiating database connectiion")
+	username := os.Getenv("MONGODB_USERNAME")
+	password := os.Getenv("MONGODB_dockPASSWORD")
+	fmt.Printf("Connection username : %v ; password : %v \n", username, password)
 	opts := options.Client()
-	opts.ApplyURI(connString)
+	opts.SetAuth(options.Credential{
+		Username: os.Getenv("MONGODB_USERNAME"),
+		Password: os.Getenv("MONGODB_PASSWORD"),
+	})
+	opts.ApplyURI(os.Getenv("MONGODB_URL"))
+	//opts.ApplyURI(connString)
 	opts.SetMaxPoolSize(5)
 	if client, err = mongo.Connect(context.Background(), opts); err != nil {
+		fmt.Println("error connecting to mongoodb")
 		fmt.Println(err.Error())
 	}
 	return client
@@ -31,20 +43,20 @@ func InitiateMongoClient() *mongo.Client {
 
 func UploadFile(data []byte, filename string) {
 	conn := InitiateMongoClient()
-	//defer conn.
+	defer conn.Disconnect(context.TODO())
 	bucket, err := gridfs.NewBucket(
 		conn.Database(dbName),
 	)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+		fmt.Printf("error creating grid fs bucket %v \n", err)
+		return
 	}
 	uploadStream, err := bucket.OpenUploadStream(
 		filename,
 	)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return
 	}
 	defer uploadStream.Close()
 

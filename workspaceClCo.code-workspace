@@ -8,6 +8,12 @@
 		},
 		{
 			"path": "client-interface"
+		},
+		{
+			"path": "fashion-generators"
+		},
+		{
+			"path": "k8s-deployment"
 		}
 	],
 	"settings": {}
