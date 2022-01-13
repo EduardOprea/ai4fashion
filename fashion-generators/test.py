@@ -3,6 +3,7 @@ from torchvision import transforms
 from model import CycleGANGenerator
 from PIL import Image
 import matplotlib.pyplot as plt
+import numpy as np
 
 def denorm_tensor(img):
     img_d = (img + 1) / 2
@@ -18,6 +19,20 @@ def get_image_from_tensor(img_tensor):
     img_array = generated_image.detach().cpu()
     print(f'img_array shape => {img_array.shape}')
     return img_array
+
+def get_image_from_tensor2(img_tensor):
+    img = img_tensor.detach().cpu().numpy()
+    img = np.squeeze(img)
+    img = img.swapaxes(2,0)
+    img = img.swapaxes(0,1)
+    mean = [0.5, 0.5, 0.5]
+    std = [0.5, 0.5, 0.5]
+    
+    img = img*std
+    img = img+mean
+    img = (img)*255
+
+    return img.round().astype('uint8')
 
 image_size = 128
 TRANSFORMS = transforms.Compose([
@@ -38,11 +53,19 @@ generator.load_state_dict(torch.load(model_path, map_location='cpu'))
 test_img = Image.open(image_path)
 img_tensor = TRANSFORMS(test_img).unsqueeze(0)
 
+# fake_img_tensor = generator(img_tensor).squeeze(0)
+# print(fake_img_tensor.shape)
+# fake_img = get_image_from_tensor(fake_img_tensor)
+# fake_img_array = fake_img.numpy()
+# print(f"Image array shape -> {fake_img_array.shape}")
+# plt.imshow(fake_img_array)
+# plt.savefig('result3.png')
+# plt.close()
+
 fake_img_tensor = generator(img_tensor).squeeze(0)
 print(fake_img_tensor.shape)
-fake_img = get_image_from_tensor(fake_img_tensor)
-fake_img_array = fake_img.numpy()
-print(f"Image array shape -> {fake_img_array.shape}")
-plt.imshow(fake_img_array)
+fake_img = get_image_from_tensor2(fake_img_tensor)
+print(f"Image array shape -> {fake_img.shape}")
+plt.imshow(fake_img)
 plt.savefig('result3.png')
 plt.close()
