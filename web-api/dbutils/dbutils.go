@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -22,15 +21,15 @@ const dbName = "ai4fashionDB"
 func InitiateMongoClient() *mongo.Client {
 	var err error
 	var client *mongo.Client
-	fmt.Println("initiating database connectiion")
+	fmt.Println("initiating database connection")
 	username := os.Getenv("MONGODB_USERNAME")
 	password := os.Getenv("MONGODB_dockPASSWORD")
 	fmt.Printf("Connection username : %v ; password : %v \n", username, password)
 	opts := options.Client()
-	opts.SetAuth(options.Credential{
-		Username: os.Getenv("MONGODB_USERNAME"),
-		Password: os.Getenv("MONGODB_PASSWORD"),
-	})
+	// opts.SetAuth(options.Credential{
+	// 	Username: os.Getenv("MONGODB_USERNAME"),
+	// 	Password: os.Getenv("MONGODB_PASSWORD"),
+	// })
 
 	var dbConnString string
 	if len(os.Getenv("MONGODB_URL")) > 0 {
@@ -74,7 +73,7 @@ func UploadFile(data []byte, filename string) {
 	}
 	log.Printf("Write file to DB was successful. File size: %d M\n", fileSize)
 }
-func DownloadFile(fileName string) {
+func GetImageProcessed(imageName string) []byte {
 	conn := InitiateMongoClient()
 
 	db := conn.Database(dbName)
@@ -83,10 +82,27 @@ func DownloadFile(fileName string) {
 		db,
 	)
 	var buf bytes.Buffer
-	dStream, err := bucket.DownloadToStreamByName(fileName, &buf)
+	dStream, err := bucket.DownloadToStreamByName(imageName, &buf)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error getting image processed from db => %v\n", err)
+		return nil
 	}
-	fmt.Printf("File size to download: %v\n", dStream)
-	ioutil.WriteFile(fileName, buf.Bytes(), 0600)
+	fmt.Printf("Image size to download: %v\n", dStream)
+	return buf.Bytes()
+}
+func GetFileAndSave(imageName string) {
+	conn := InitiateMongoClient()
+
+	db := conn.Database(dbName)
+
+	bucket, _ := gridfs.NewBucket(
+		db,
+	)
+	var buf bytes.Buffer
+	dStream, err := bucket.DownloadToStreamByName(imageName, &buf)
+	if err != nil {
+		fmt.Printf("Error getting image processed from db => %v\n", err)
+	}
+	fmt.Printf("Image size to download: %v\n", dStream)
+	os.WriteFile(imageName, buf.Bytes(), 0600)
 }

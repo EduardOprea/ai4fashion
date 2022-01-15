@@ -9,6 +9,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const amqpDefaultUrl = "amqp://guest:guest@localhost:5672/"
+
 func PublishImageToProcessTransaction(tran models.ProcessImageTran) error {
 	ch, err := GetAMQPChannel()
 	defer ch.Close()
@@ -48,8 +50,12 @@ func PublishImageToProcessTransaction(tran models.ProcessImageTran) error {
 }
 func GetAMQPChannel() (*amqp.Channel, error) {
 	fmt.Println("Rabbit MQ connect")
-	// amqpConn := "amqp://guest:guest@localhost:5672/"
-	amqpConn := os.Getenv("AMQP_URL")
+	var amqpConn string
+	if len(os.Getenv("AMQP_URL")) > 0 {
+		amqpConn = os.Getenv("AMQP_URL")
+	} else {
+		amqpConn = amqpDefaultUrl
+	}
 	fmt.Printf("Connection string to rabbit mq -> %s \n", amqpConn)
 	conn, err := amqp.Dial(amqpConn)
 	if err != nil {

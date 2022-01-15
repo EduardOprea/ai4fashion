@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -17,6 +21,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const torchServeApiUrlDefault = "http://localhost:8080"
+const webApiDefaultUrl = "http://localhost:3031"
+const amqpDefaultUrl = "amqp://guest:guest@localhost:5672/"
+
 func processImageTransactionReceived(received []byte) {
 	var tran models.ProcessImageTran
 	if err := json.Unmarshal(received, &tran); err != nil {
@@ -26,24 +34,187 @@ func processImageTransactionReceived(received []byte) {
 
 	fmt.Println("Deserialised bytes received succesfully")
 	fmt.Printf("Result => %v", tran)
-	// TODO => do not save the image to filesystem, instead I need to process it and
-	// and then store it to the db
-	// after storing it to the db, we need to notify the web api that is ready in order to further notify
-	// the client, or the client will make continuous polling based on a transaction id that was provided to him
-	// and the name under which the image is saved in the db should be correlated with the transaction id
 	data, err := getImageToProcess(tran.ImageName)
 	if err != nil {
 		fmt.Printf("Downloading image to process from web api failed => %v", err)
 		return
 	}
-	fmt.Println("Downloaded the image succesfully, uploading to DB")
-	dbutils.UploadFile(data, tran.ImageName)
+	fmt.Println("Downloaded the image succesfully from web-api, now calling fashion-serve")
+
+	dataProcesssed, err := editImageTest(data)
+	if err != nil {
+		fmt.Printf("Error when editing image with torchserve => %v\n", err)
+		return
+	}
+	fmt.Println("Succesfully get fashion-serve result")
+	fmt.Printf("The size of the data received is %v\n", len(dataProcesssed))
+	ioutil.WriteFile("response_torchserve.txt", dataProcesssed, 0600)
+
+	var rawImage models.RawImage
+	json.Unmarshal(dataProcesssed, &rawImage)
+	// saveRawImageAsJpeg(rawImage)
+
+	var jpegImageData bytes.Buffer
+
+	var opts jpeg.Options
+	opts.Quality = 100
+	imageAsArray := flattenMatrix(rawImage.Data)
+
+	imageTest := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	imageTest.Pix = imageAsArray
+	err = jpeg.Encode(&jpegImageData, imageTest, &opts)
+
+	// ioutil.WriteFile("test.jpeg", jpegImageData.Bytes(), 0600)
+
+	dbutils.UploadFile(jpegImageData.Bytes(), tran.ImageName)
+	return
 }
 
+func saveRawImageAsJpeg(rawImage models.RawImage) {
+	imageAsArray := flattenMatrix(rawImage.Data)
+
+	imageTest := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	imageTest.Pix = imageAsArray
+
+	out, _ := os.Create("./imgTest.jpeg")
+	defer out.Close()
+
+	var opts jpeg.Options
+	opts.Quality = 100
+
+	err := jpeg.Encode(out, imageTest, &opts)
+	if err != nil {
+		fmt.Println("error saving raw bytes processed as jpeg image")
+	}
+}
+func flattenMatrix(matrix [][][]byte) []byte {
+	height := len(matrix)
+	width := len(matrix[0])
+	// nChannels := len(matrix[0][0])
+	nChannels := 4
+	size := width * height * nChannels
+	count := 0
+	array := make([]byte, size)
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			for k := 0; k < nChannels-1; k++ {
+				// array[i*width+j*nChannels+k] = matrix[i][j][k]
+				array[count] = matrix[i][j][k]
+				count++
+
+			}
+			array[count] = 1
+			count++
+
+		}
+	}
+	return array
+}
+func saveBytesAsImageTest(imgByte []byte) {
+
+	img, _, err := image.Decode(bytes.NewReader(imgByte))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	out, _ := os.Create("./img.jpeg")
+	defer out.Close()
+
+	var opts jpeg.Options
+	opts.Quality = 1
+
+	err = jpeg.Encode(out, img, &opts)
+	//jpeg.Encode(out, img, nil)
+	if err != nil {
+		log.Println(err)
+	}
+
+}
+func editImageTest(image []byte) ([]byte, error) {
+	httpClient := http.Client{Timeout: time.Duration(60) * time.Second}
+	r := bytes.NewReader(image)
+	var torchServeApiUrl string
+	if len(os.Getenv("TORCHSERVE_URL")) > 0 {
+		torchServeApiUrl = os.Getenv("TORCHSERVE_URL")
+	} else {
+		torchServeApiUrl = torchServeApiUrlDefault
+	}
+	fmt.Printf("Using the follwing url for torch serve => %s \n ", torchServeApiUrl)
+	resp, err := httpClient.Post(fmt.Sprintf("%s/predictions/cycleganfloraladd", torchServeApiUrl), "binary", r)
+
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	fmt.Println("Succes sending req to torch serve")
+
+	imageProcessed, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// if resp.ContentLength <= 0 {
+	// 	log.Println("[*] Destination server does not support breakpoint download.")
+	// }
+	// raw := resp.Body
+	// reader := bufio.NewReaderSize(raw, 1024*32)
+
+	// buff := make([]byte, 0)
+	// buffTemp := make([]byte, 32*1024)
+	// written := 0
+	// go func() {
+	// 	for {
+	// 		nr, er := reader.Read(buffTemp)
+	// 		if nr > 0 {
+	// 			buff = append(buff, buffTemp...)
+	// 			written += nr
+	// 		}
+	// 		if er != nil {
+	// 			if er != io.EOF {
+	// 				err = er
+	// 			}
+	// 			break
+	// 		}
+	// 	}
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }()
+
+	// spaceTime := time.Second * 1
+	// ticker := time.NewTicker(spaceTime)
+	// lastWtn := 0
+	// stop := false
+
+	// for {
+	// 	select {
+	// 	case <-ticker.C:
+	// 		speed := written - lastWtn
+	// 		fmt.Printf("[*] Speed %s / %s \n", bytesToSize(speed), spaceTime.String())
+	// 		if written-lastWtn == 0 {
+	// 			ticker.Stop()
+	// 			stop = true
+	// 			break
+	// 		}
+	// 		lastWtn = written
+	// 	}
+	// 	if stop {
+	// 		break
+	// 	}
+	// }
+
+	return imageProcessed, nil
+}
 func getImageToProcess(fileName string) ([]byte, error) {
 	c := http.Client{Timeout: time.Duration(60) * time.Second}
-	// resp, err := c.Get(fmt.Sprintf("http://localhost:8081/download/%s", fileName))
-	resp, err := c.Get(fmt.Sprintf("%s/download/%s", os.Getenv("API_URL"), fileName))
+	var webApiUrl string
+	if len(os.Getenv("API_URL")) > 0 {
+		webApiUrl = os.Getenv("API_URL")
+	} else {
+		webApiUrl = webApiDefaultUrl
+	}
+	fmt.Printf("Using the following url for web-api => %s\n", webApiUrl)
+	resp, err := c.Get(fmt.Sprintf("%s/download/%s", webApiUrl, fileName))
 	if err != nil {
 		// fmt.Printf("Error %s", err)
 		return nil, err
@@ -133,9 +304,13 @@ func bytesToSize(length int) string {
 }
 
 func main() {
-	amqpUrl := os.Getenv("AMQP_URL")
-	fmt.Printf("Test to see if environment variables are injected -> %s \n", amqpUrl)
-	// amqpName := "amqp://guest:guest@localhost:5672/"
+	var amqpUrl string
+	if len(os.Getenv("AMQP_URL")) > 0 {
+		amqpUrl = os.Getenv("AMQP_URL")
+	} else {
+		amqpUrl = amqpDefaultUrl
+	}
+	fmt.Printf("Using the following url for rabbitmq -> %s \n", amqpUrl)
 	fmt.Println("Rabbit MQ consumer start")
 	conn, err := amqp.Dial(amqpUrl)
 	if err != nil {

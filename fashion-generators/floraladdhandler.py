@@ -4,6 +4,7 @@ from torchvision import transforms
 from ts.torch_handler.base_handler import BaseHandler
 import io
 import os
+import numpy as np
 
 from model import CycleGANGenerator
 
@@ -53,10 +54,21 @@ class FloralAddHandler(BaseHandler):
         return outs
     def postprocess(self, preds):
         res = []
-        preds = preds.detach().cpu().numpy().tolist()
-        for pred in preds:
-            res.append(pred)
-
+        preds = preds.detach().cpu().numpy()
+        for img in preds:
+            #img = pred.detach().cpu().numpy()
+            img = np.squeeze(img)
+            img = img.swapaxes(2,0)
+            img = img.swapaxes(0,1)
+            mean = [0.5, 0.5, 0.5]
+            std = [0.5, 0.5, 0.5]
+            img = img*std
+            img = img+mean
+            img = (img)*255
+            print(f'The size of the edited image is: {img.shape}')
+            img = img.round().astype('uint8').tolist()
+            #img = Image.fromarray(img.round().astype('uint8'))
+            res.append({"image" : img})
         return res
 
 

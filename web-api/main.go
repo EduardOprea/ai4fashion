@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/EduardOprea/ai4fashion/web-api/dbutils"
 	"github.com/EduardOprea/ai4fashion/web-api/models"
 	"github.com/EduardOprea/ai4fashion/web-api/rabbitmqutils"
 
@@ -72,7 +73,6 @@ func downloadImage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	imageName := vars["imageName"]
 	fmt.Printf("Returning image %s \n", imageName)
-
 	// TODO check if image exists first
 	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(imageName))
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -80,15 +80,33 @@ func downloadImage(w http.ResponseWriter, r *http.Request) {
 	// after serving file perhaps delete it or make a separate service to do that
 	// in case it can not be deleted imediately after being served
 }
+func getProcesedImage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("get processed image endpoint hit")
+	vars := mux.Vars(r)
+	imageName := vars["imageName"]
+	fmt.Printf("Returning image from db %s \n", imageName)
+	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(imageName))
+	w.Header().Set("Content-Type", "application/octet-stream")
 
+	imageData := dbutils.GetImageProcessed(imageName)
+	if imageData == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(imageData)
+}
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/upload", uploadImage).Methods("POST")
-	myRouter.HandleFunc("/download/{imageName}", downloadImage)
-	log.Fatal(http.ListenAndServe(":8081", myRouter))
+	myRouter.HandleFunc("/localImage/{imageName}", downloadImage)
+	myRouter.HandleFunc("/processedImage/{imageName}", getProcesedImage)
+	log.Fatal(http.ListenAndServe(":3031", myRouter))
 }
 func main() {
+	// dbutils.GetFileAndSave("upload-501914534.jpg")
 	fmt.Println("Server started")
 	handleRequests()
 }
