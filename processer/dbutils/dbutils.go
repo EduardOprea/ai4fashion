@@ -24,14 +24,17 @@ func InitiateMongoClient() *mongo.Client {
 	var client *mongo.Client
 	fmt.Println("initiating database connectiion")
 	username := os.Getenv("MONGODB_USERNAME")
-	password := os.Getenv("MONGODB_dockPASSWORD")
+	password := os.Getenv("MONGODB_PASSWORD")
 	fmt.Printf("Connection username : %v ; password : %v \n", username, password)
 	opts := options.Client()
-	opts.SetAuth(options.Credential{
-		Username: os.Getenv("MONGODB_USERNAME"),
-		Password: os.Getenv("MONGODB_PASSWORD"),
-	})
 
+	// there are username and passowrd environment variables, so we try to authenticate with them
+	if len(username) > 0 && len(password) > 0 {
+		opts.SetAuth(options.Credential{
+			Username: os.Getenv("MONGODB_USERNAME"),
+			Password: os.Getenv("MONGODB_PASSWORD"),
+		})
+	}
 	var dbConnString string
 	if len(os.Getenv("MONGODB_URL")) > 0 {
 		dbConnString = os.Getenv("MONGODB_URL")

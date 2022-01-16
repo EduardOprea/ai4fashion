@@ -39,21 +39,25 @@ func processImageTransactionReceived(received []byte) {
 		fmt.Printf("Downloading image to process from web api failed => %v", err)
 		return
 	}
-	fmt.Println("Downloaded the image succesfully from web-api, now calling fashion-serve")
-
-	dataProcesssed, err := editImageTest(data)
+	fmt.Printf("Downloaded the image succesfully from web-api size %v \n", len(data))
+	// ioutil.WriteFile("originalimagetest.jpg", data, 0600)
+	dataProcesssed, err := editImageTest(data, tran.DesiredAttributes)
 	if err != nil {
 		fmt.Printf("Error when editing image with torchserve => %v\n", err)
 		return
 	}
 	fmt.Println("Succesfully get fashion-serve result")
 	fmt.Printf("The size of the data received is %v\n", len(dataProcesssed))
-	ioutil.WriteFile("response_torchserve.txt", dataProcesssed, 0600)
+
+	// ioutil.WriteFile("response_torchserve.txt", dataProcesssed, 0600)
 
 	var rawImage models.RawImage
 	json.Unmarshal(dataProcesssed, &rawImage)
 	// saveRawImageAsJpeg(rawImage)
-
+	if len(rawImage.Data) < 1 {
+		fmt.Println("editing the image failed")
+		return
+	}
 	var jpegImageData bytes.Buffer
 
 	var opts jpeg.Options
@@ -64,7 +68,7 @@ func processImageTransactionReceived(received []byte) {
 	imageTest.Pix = imageAsArray
 	err = jpeg.Encode(&jpegImageData, imageTest, &opts)
 
-	// ioutil.WriteFile("test.jpeg", jpegImageData.Bytes(), 0600)
+	//ioutil.WriteFile("finalprocessedimgtest.jpeg", jpegImageData.Bytes(), 0600)
 
 	dbutils.UploadFile(jpegImageData.Bytes(), tran.ImageName)
 	return
@@ -130,7 +134,7 @@ func saveBytesAsImageTest(imgByte []byte) {
 	}
 
 }
-func editImageTest(image []byte) ([]byte, error) {
+func editImageTest(image []byte, desiredAttr string) ([]byte, error) {
 	httpClient := http.Client{Timeout: time.Duration(60) * time.Second}
 	r := bytes.NewReader(image)
 	var torchServeApiUrl string
@@ -139,69 +143,40 @@ func editImageTest(image []byte) ([]byte, error) {
 	} else {
 		torchServeApiUrl = torchServeApiUrlDefault
 	}
-	fmt.Printf("Using the follwing url for torch serve => %s \n ", torchServeApiUrl)
-	resp, err := httpClient.Post(fmt.Sprintf("%s/predictions/cycleganfloraladd", torchServeApiUrl), "binary", r)
+	fmt.Printf("Using the following url for torch serve => %s \n ", torchServeApiUrl)
 
+	var modelEndpointUrl string
+
+	switch desiredAttr {
+	case "add-floral":
+		modelEndpointUrl = fmt.Sprintf("%s/predictions/%s", torchServeApiUrl, "cycleganfloraladd")
+		break
+	case "remove-floral":
+		modelEndpointUrl = fmt.Sprintf("%s/predictions/%s", torchServeApiUrl, "cycleganfloralremove")
+		break
+	case "add-stripes":
+		modelEndpointUrl = fmt.Sprintf("%s/predictions/%s", torchServeApiUrl, "cycleganstripesadd")
+		break
+	case "remove-stripes":
+		modelEndpointUrl = fmt.Sprintf("%s/predictions/%s", torchServeApiUrl, "cycleganstripesremove")
+		break
+	}
+
+	fmt.Printf("Calling the following endpoint => %v\n", modelEndpointUrl)
+	resp, err := httpClient.Post(modelEndpointUrl, "binary", r)
+
+	// resp, err := httpClient.Post(modelEndpointUrl, "binary", r)
 	if err != nil {
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 	fmt.Println("Succes sending req to torch serve")
-
+	fmt.Printf("Response status code => %v \n", resp.StatusCode)
 	imageProcessed, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-
-	// if resp.ContentLength <= 0 {
-	// 	log.Println("[*] Destination server does not support breakpoint download.")
-	// }
-	// raw := resp.Body
-	// reader := bufio.NewReaderSize(raw, 1024*32)
-
-	// buff := make([]byte, 0)
-	// buffTemp := make([]byte, 32*1024)
-	// written := 0
-	// go func() {
-	// 	for {
-	// 		nr, er := reader.Read(buffTemp)
-	// 		if nr > 0 {
-	// 			buff = append(buff, buffTemp...)
-	// 			written += nr
-	// 		}
-	// 		if er != nil {
-	// 			if er != io.EOF {
-	// 				err = er
-	// 			}
-	// 			break
-	// 		}
-	// 	}
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }()
-
-	// spaceTime := time.Second * 1
-	// ticker := time.NewTicker(spaceTime)
-	// lastWtn := 0
-	// stop := false
-
-	// for {
-	// 	select {
-	// 	case <-ticker.C:
-	// 		speed := written - lastWtn
-	// 		fmt.Printf("[*] Speed %s / %s \n", bytesToSize(speed), spaceTime.String())
-	// 		if written-lastWtn == 0 {
-	// 			ticker.Stop()
-	// 			stop = true
-	// 			break
-	// 		}
-	// 		lastWtn = written
-	// 	}
-	// 	if stop {
-	// 		break
-	// 	}
-	// }
 
 	return imageProcessed, nil
 }
@@ -214,11 +189,12 @@ func getImageToProcess(fileName string) ([]byte, error) {
 		webApiUrl = webApiDefaultUrl
 	}
 	fmt.Printf("Using the following url for web-api => %s\n", webApiUrl)
-	resp, err := c.Get(fmt.Sprintf("%s/download/%s", webApiUrl, fileName))
+	resp, err := c.Get(fmt.Sprintf("%s/localImage/%s", webApiUrl, fileName))
 	if err != nil {
 		// fmt.Printf("Error %s", err)
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 
 	if resp.ContentLength <= 0 {

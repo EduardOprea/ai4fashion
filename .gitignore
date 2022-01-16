@@ -85,3 +85,4 @@ test_images/
 venv_cyclegan/
 .vscode/
 __pycache__/
+imgs-process/

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -53,6 +55,7 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 	// read all of the contents of our uploaded file into a
 	// byte array
 	fileBytes, err := ioutil.ReadAll(file)
+	fmt.Printf("The size of the image in bytes is => %v\n", len(fileBytes))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -65,8 +68,13 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	// return that we have successfully uploaded our file!
-	fmt.Fprintf(w, "Successfully Uploaded File as %s\n", tempFile.Name())
+
+	bodyResponse := models.ProcessImageResponse{
+		Message:   "Succes => processing",
+		ImageName: filepath.Base(tempFile.Name()),
+	}
+	bodyJson, _ := json.Marshal(bodyResponse)
+	fmt.Fprint(w, string(bodyJson))
 }
 func downloadImage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Download image endpoint hit")
@@ -97,16 +105,19 @@ func getProcesedImage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(imageData)
 }
-func handleRequests() {
+func handleRequests(listenPort string) {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/upload", uploadImage).Methods("POST")
 	myRouter.HandleFunc("/localImage/{imageName}", downloadImage)
 	myRouter.HandleFunc("/processedImage/{imageName}", getProcesedImage)
-	log.Fatal(http.ListenAndServe(":3031", myRouter))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", listenPort), myRouter))
 }
 func main() {
-	// dbutils.GetFileAndSave("upload-501914534.jpg")
-	fmt.Println("Server started")
-	handleRequests()
+	listenPort := "8081"
+	if len(os.Getenv("API_LISTEN_PORT")) > 0 {
+		listenPort = os.Getenv("API_LISTEN_PORT")
+	}
+	fmt.Printf("Server started, listening on port %s\n", listenPort)
+	handleRequests(listenPort)
 }

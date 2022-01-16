@@ -32,7 +32,7 @@ def get_image_from_tensor2(img_tensor):
     img = img+mean
     img = (img)*255
 
-    return img.round().astype('uint8')
+    return img.round().astype('uint8').tolist()
 
 image_size = 128
 TRANSFORMS = transforms.Compose([
@@ -53,19 +53,11 @@ generator.load_state_dict(torch.load(model_path, map_location='cpu'))
 test_img = Image.open(image_path)
 img_tensor = TRANSFORMS(test_img).unsqueeze(0)
 
-# fake_img_tensor = generator(img_tensor).squeeze(0)
-# print(fake_img_tensor.shape)
-# fake_img = get_image_from_tensor(fake_img_tensor)
-# fake_img_array = fake_img.numpy()
-# print(f"Image array shape -> {fake_img_array.shape}")
-# plt.imshow(fake_img_array)
-# plt.savefig('result3.png')
-# plt.close()
 
 fake_img_tensor = generator(img_tensor).squeeze(0)
 print(fake_img_tensor.shape)
 fake_img = get_image_from_tensor2(fake_img_tensor)
-print(f"Image array shape -> {fake_img.shape}")
+# print(f"Image array shape -> {fake_img.shape}")
 plt.imshow(fake_img)
 plt.savefig('result3.png')
 plt.close()
