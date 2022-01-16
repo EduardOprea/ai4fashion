@@ -138,8 +138,8 @@ func editImageTest(image []byte, desiredAttr string) ([]byte, error) {
 	httpClient := http.Client{Timeout: time.Duration(60) * time.Second}
 	r := bytes.NewReader(image)
 	var torchServeApiUrl string
-	if len(os.Getenv("TORCHSERVE_URL")) > 0 {
-		torchServeApiUrl = os.Getenv("TORCHSERVE_URL")
+	if len(os.Getenv("TORCHSERVE_URL")) > 0 && len(os.Getenv("TORCHSERVE_GEN_PORT")) > 0 {
+		torchServeApiUrl = fmt.Sprintf("%s:%s", os.Getenv("TORCHSERVE_URL"), os.Getenv("TORCHSERVE_GEN_PORT"))
 	} else {
 		torchServeApiUrl = torchServeApiUrlDefault
 	}
@@ -183,8 +183,8 @@ func editImageTest(image []byte, desiredAttr string) ([]byte, error) {
 func getImageToProcess(fileName string) ([]byte, error) {
 	c := http.Client{Timeout: time.Duration(60) * time.Second}
 	var webApiUrl string
-	if len(os.Getenv("API_URL")) > 0 {
-		webApiUrl = os.Getenv("API_URL")
+	if len(os.Getenv("API_URL")) > 0 && len(os.Getenv("API_PORT")) > 0 {
+		webApiUrl = fmt.Sprintf("%s:%s", os.Getenv("API_URL"), os.Getenv("API_PORT"))
 	} else {
 		webApiUrl = webApiDefaultUrl
 	}

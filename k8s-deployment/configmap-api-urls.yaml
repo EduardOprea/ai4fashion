@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-api-urls
+data:
+  AMQP_URL: amqp://rabbitmq-cluster-ip-service/
+  API_URL: http://web-api-cluster-ip-service
+  API_PORT: "8081"
+  TORCHSERVE_URL: http://fashion-serve-generator-service
+  TORCHSERVE_GEN_PORT: "8080"
+  MONGODB_URL: mongodb://mongodb-service
+  MONGODB_PORT: "27017"

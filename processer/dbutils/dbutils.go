@@ -13,8 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-//const connString := os.Getenv("MONGODB_URL")
-
 const dbDefaultUrl = "mongodb://localhost:27017"
 const dbName = "ai4fashionDB"
 
@@ -23,21 +21,21 @@ func InitiateMongoClient() *mongo.Client {
 	var err error
 	var client *mongo.Client
 	fmt.Println("initiating database connectiion")
-	username := os.Getenv("MONGODB_USERNAME")
-	password := os.Getenv("MONGODB_PASSWORD")
+	username := os.Getenv("MONGO_ROOT_USERNAME")
+	password := os.Getenv("MONGO_ROOT_PASSWORD")
 	fmt.Printf("Connection username : %v ; password : %v \n", username, password)
 	opts := options.Client()
 
 	// there are username and passowrd environment variables, so we try to authenticate with them
 	if len(username) > 0 && len(password) > 0 {
 		opts.SetAuth(options.Credential{
-			Username: os.Getenv("MONGODB_USERNAME"),
-			Password: os.Getenv("MONGODB_PASSWORD"),
+			Username: os.Getenv("MONGO_ROOT_USERNAME"),
+			Password: os.Getenv("MONGO_ROOT_PASSWORD"),
 		})
 	}
 	var dbConnString string
-	if len(os.Getenv("MONGODB_URL")) > 0 {
-		dbConnString = os.Getenv("MONGODB_URL")
+	if len(os.Getenv("MONGODB_URL")) > 0 && len(os.Getenv("MONGODB_PORT")) > 0 {
+		dbConnString = fmt.Sprintf("%s:%s", os.Getenv("MONGODB_URL"), os.Getenv("MONGODB_PORT"))
 	} else {
 		dbConnString = dbDefaultUrl
 	}

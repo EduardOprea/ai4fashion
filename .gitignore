@@ -86,3 +86,4 @@ venv_cyclegan/
 .vscode/
 __pycache__/
 imgs-process/
+model_archives/
